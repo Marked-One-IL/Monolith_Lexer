@@ -1,10 +1,22 @@
 #include "Generator.hpp"
 #include <fstream>
 
-int main()
+int main(int argc, char** argv)
 {
-    Lexer::Generator lexer("input.mon");
-    std::fstream output("output.lex", std::ios::out | std::ios::trunc);
+    const char* inputFileName = "input.mon";
+    const char* outputFileName = "output.lex";
+
+    if (argc >= 2)
+    {
+        inputFileName = argv[1];
+    }
+    if (argc >= 3)
+    {
+        outputFileName = argv[2];
+    }
+
+    Lexer::Generator lexer(inputFileName);
+    std::fstream output(outputFileName, std::ios::out | std::ios::trunc);
     output << lexer;
     return 0;
 }

@@ -1,7 +1,5 @@
 [KEYWORD: 'import'] [IDENTIFIER: 'std'] [NEW_LINE]
 [NEW_LINE]
-[OCT_LITERAL: '0o111'] [NEW_LINE]
-[NEW_LINE]
 [KEYWORD: 'def'] [IDENTIFIER: 'main'] [SYMBOL: '('] [IDENTIFIER: 'argc'] [SYMBOL: ':'] [KEYWORD: 'int32'] [SYMBOL: ','] [IDENTIFIER: 'argv'] [SYMBOL: ':'] [KEYWORD: 'ptr'] [SYMBOL: '['] [KEYWORD: 'int8'] [SYMBOL: ','] [INT_LITERAL: '2'] [SYMBOL: ']'] [SYMBOL: ')'] [SYMBOL: ':'] [NEW_LINE]
 [NEW_LINE]
 	[INDENT]
