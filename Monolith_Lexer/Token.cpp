@@ -68,6 +68,9 @@ std::ostream& Lexer::operator << (std::ostream& stream, const Lexer::Token& toke
     case Tag::BIN_LITERAL:
         stream << "BIN_LITERAL";
         break;
+    case Tag::OCT_LITERAL:
+        stream << "OCT_LITERAL";
+        break;
     case Tag::SCI_LITERAL:
         stream << "SCI_LITERAL";
         break;

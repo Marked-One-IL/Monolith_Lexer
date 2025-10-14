@@ -10,6 +10,7 @@ namespace Lexer
 		CHAR_LITERAL,   // 'H'
 		HEX_LITERAL,    // 0xABCD
 		BIN_LITERAL,    // 0b0101
+		OCT_LITERAL,	// 0o01234567
 		SCI_LITERAL,    // 1e-3
 		FLOAT_LITERAL,  // 1234.1234
 		INT_LITERAL,    // 1234

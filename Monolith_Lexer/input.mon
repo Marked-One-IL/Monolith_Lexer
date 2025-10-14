@@ -1,22 +1,13 @@
-x : int32 = 10
-y : int32 = 10
-myFloat : float = 10.1a
-
-0xab1
-
-	"1234 
-
-1e+556
-
-# 1234 sdadas dasdas
+import std
 
 def main(argc: int32, argv: ptr[int8, 2]):
-	print("Hello, World\n")
-	
-	if (x < 3 and
-		y > 4):
-		if (
-			idk):
-			print()
+
+	if argc != 2:
+		std.println("Argc count is not valid\nCount: ", argc)
+		return 1
+
+	limit: uint64 = std.strlen(argv[1])
+	for i: uint64 = 0, i < limit, i++:
+		std.println(argv[1][i])
 
 	return 0

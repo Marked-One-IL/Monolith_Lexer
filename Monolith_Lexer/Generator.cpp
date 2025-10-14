@@ -37,7 +37,7 @@ Lexer::Generator::Generator(const char* filename) : m_filename(filename)
     bool shouldCheckIndentFlag = false;
     
     // For errors.
-    std::size_t linesCount = 0;
+    std::size_t linesCount = 1;
     std::string_view currentLine = extractUntilNewLine(view);
 
     // Note: If a extractTAGX method is guaranteed to work only in the current line it's first commands in the function block shall be.
@@ -50,6 +50,9 @@ Lexer::Generator::Generator(const char* filename) : m_filename(filename)
     //     view.remove_prefix(...);
     //     return Lexer::Token(Lexer::Tag..., content);
     // The exceptions of this is extractString3Literal, extractNewLine and skipSpaces.
+    // Note 2: Avoid calculating sizes manually use append 'std::size_t totalSize = 0;' to the first commands and use it increment it in every loop.
+    // And use it avoid doing x.size() - 1 + ... and ect this is ugly and can cause problems easily.
+    // If std::size_t totalSize = 0; is not necessary feel free to not use it. Unlike the previous note.
 
     while (not view.empty())
     {
@@ -93,6 +96,11 @@ Lexer::Generator::Generator(const char* filename) : m_filename(filename)
                 continue;
             }
             if (auto opt = Lexer::Generator::extractBinLiteral(view))
+            {
+                this->m_tokens.emplace_back(opt.value());
+                continue;
+            }
+            if (auto opt = Lexer::Generator::extractOctLiteral(view))
             {
                 this->m_tokens.emplace_back(opt.value());
                 continue;
@@ -243,7 +251,9 @@ std::string_view Lexer::Generator::extractUntilNotAlnum(const std::string_view& 
 
     for (i = 0; i < fixedView.size(); i++)
     {
-        if (fixedView[i] == ignoreOnce)
+        unsigned char c = static_cast<unsigned char>(fixedView[i]);
+
+        if (std::tolower(c) == std::tolower(ignoreOnce))
         {
             if (seen)
             {
@@ -252,15 +262,34 @@ std::string_view Lexer::Generator::extractUntilNotAlnum(const std::string_view& 
             seen = true;
             continue;
         }
-
-        unsigned char c = static_cast<unsigned char>(fixedView[i]);
-        if (not std::isalnum(c))
+        
+        if (not std::isalnum(c) and c != '_')
         {
             break;
         }
     }
 
     return fixedView.substr(0, i);
+}
+std::string_view Lexer::Generator::extractUntilNotAlnum(const std::string_view& view, char orIs)
+{
+    std::string_view fixedView = Lexer::Generator::extractUntilNewLine(view);
+    if (fixedView.empty()) return fixedView;
+
+    bool seenOrIs = false;
+    std::size_t i = 0;
+    for (i = 0; i < fixedView.size(); i++)
+    {
+        unsigned char c = static_cast<unsigned char>(fixedView[i]);
+        seenOrIs = std::tolower(c) == std::tolower(orIs);
+
+        if (seenOrIs or (not std::isalnum(c) and c == '_'))
+        {
+            break;
+        }
+    }
+
+    return fixedView.substr(0, i + seenOrIs); // The 'orIs' char is included.
 }
 std::string_view Lexer::Generator::extractUntilNewLine(const std::string_view& view)
 {
@@ -362,6 +391,7 @@ std::optional<Lexer::Token> Lexer::Generator::extractCharLiteral(std::string_vie
 }
 std::optional<Lexer::Token> Lexer::Generator::extractHexLiteral(std::string_view& view)
 {
+    std::size_t totalSize = 0;
     std::string_view fixedView = Lexer::Generator::extractUntilNewLine(view);
     if (fixedView.empty()) return std::nullopt;
 
@@ -372,24 +402,26 @@ std::optional<Lexer::Token> Lexer::Generator::extractHexLiteral(std::string_view
     std::string_view possibleHex = Lexer::Generator::extractUntilNotAlnum(fixedView.substr(std::strlen("0x")));
     if (possibleHex.empty())
         throw Lexer::Generator::Error("Invalid Hexadecimal literal");
+    totalSize += std::strlen("0x");
 
     for (std::size_t i = 0; i < possibleHex.size(); i++)
     {
         unsigned char c = static_cast<unsigned char>(possibleHex[i]);
         if (not std::isdigit(c) and std::string_view("ABCDEFabcdef").find(static_cast<char>(c)) == std::string_view::npos)
         {
-            throw Lexer::Generator::Error("Invalid Hexadecimal literal", i);
+            throw Lexer::Generator::Error("Invalid Hexadecimal literal", totalSize);
         }
+        totalSize++;
     }
 
-    std::size_t contentSize = possibleHex.size() + std::strlen("0x");
-    std::string_view content = fixedView.substr(0, contentSize);
-    view.remove_prefix(contentSize);
+    std::string_view content = fixedView.substr(0, totalSize);
+    view.remove_prefix(totalSize);
     return Lexer::Token(Lexer::Tag::HEX_LITERAL, content);
 }
 
 std::optional<Lexer::Token> Lexer::Generator::extractBinLiteral(std::string_view& view)
 {
+    std::size_t totalSize = 0;
     std::string_view fixedView = Lexer::Generator::extractUntilNewLine(view);
     if (fixedView.empty()) return std::nullopt;
 
@@ -400,68 +432,95 @@ std::optional<Lexer::Token> Lexer::Generator::extractBinLiteral(std::string_view
     std::string_view possibleBin = Lexer::Generator::extractUntilNotAlnum(fixedView.substr(std::strlen("0b")));
     if (possibleBin.empty())
         throw Lexer::Generator::Error("Invalid binary literal");
+    totalSize += std::strlen("0b");
 
     for (std::size_t i = 0; i < possibleBin.size(); i++)
     {
         if (possibleBin[i] != '0' and possibleBin[i] != '1')
         {
-            throw Lexer::Generator::Error("Invalid binary literal", i);
+            throw Lexer::Generator::Error("Invalid binary literal", totalSize);
         }
+        totalSize++;
     }
 
-    std::size_t contentSize = possibleBin.size() + std::strlen("0b");
-    std::string_view content = fixedView.substr(0, contentSize);
-    view.remove_prefix(contentSize);
+    std::string_view content = fixedView.substr(0, totalSize);
+    view.remove_prefix(totalSize);
     return Lexer::Token(Lexer::Tag::BIN_LITERAL, content);
+}
+std::optional<Lexer::Token> Lexer::Generator::extractOctLiteral(std::string_view& view)
+{
+    std::size_t totalSize = 0;
+    std::string_view fixedView = Lexer::Generator::extractUntilNewLine(view);
+    if (fixedView.empty()) return std::nullopt;
+
+    // Format: [Signature: 0o/0O], [Value: Digits (01234567)] 
+
+    if (not fixedView.starts_with("0o") and not fixedView.starts_with("0O")) return std::nullopt;
+
+    std::string_view possibleOct = Lexer::Generator::extractUntilNotAlnum(fixedView.substr(std::strlen("0o")));
+    if (possibleOct.empty())
+        throw Lexer::Generator::Error("Invalid octal literal");
+    totalSize += std::strlen("0o");
+
+    for (std::size_t i = 0; i < possibleOct.size(); i++)
+    {
+        if (std::string_view("01234567").find(possibleOct[i]) == std::string_view::npos)
+        {
+            throw Lexer::Generator::Error("Invalid octal literal", totalSize);
+        }
+
+        totalSize++;
+    }
+    
+    std::string_view content = fixedView.substr(0, totalSize);
+    view.remove_prefix(totalSize);
+    return Lexer::Token(Lexer::Tag::OCT_LITERAL, content);
 }
 std::optional<Lexer::Token> Lexer::Generator::extractSciLiteral(std::string_view& view)
 {
+    std::size_t totalSize = 0;
     std::string_view fixedView = Lexer::Generator::extractUntilNewLine(view);
     if (fixedView.empty()) return std::nullopt;
 
     // Format: [Base: Digits], [Signature: e/E], (Optional: + is default) [Direction: +/-], [Distance: Digits].
 
     if (not std::isdigit(static_cast<unsigned char>(fixedView.front()))) return std::nullopt;
+    
+    std::string_view possibleBaseSignature = Lexer::Generator::extractUntilNotAlnum(fixedView, 'e');
+    if (possibleBaseSignature.empty() or possibleBaseSignature.back() != 'e') return std::nullopt;
 
-    std::string_view currentView = fixedView;
-
-    std::string_view possibleBase;
-    for (std::size_t i = 0; i < fixedView.size(); i++)
+    for (std::size_t i = 0; i < possibleBaseSignature.size() - std::strlen("e"); i++)
     {
-        currentView.remove_prefix(1);
-        unsigned char c = static_cast<unsigned char>(fixedView[i]);
-        if (std::tolower(c) == 'e')
-        {
-            possibleBase = fixedView.substr(0, i);
-            break;
-        }
+        unsigned char c = static_cast<unsigned char>(possibleBaseSignature[i]);
         if (not std::isdigit(c))
         {
-            return std::nullopt;
+            throw Lexer::Generator::Error("Invalid scientific notation literal", totalSize);
         }
+        totalSize++;
+    }
+    totalSize += std::strlen("e");
+
+    std::string_view possibleDirectionDistance = fixedView.substr(possibleBaseSignature.size());
+    if (possibleDirectionDistance.empty()) throw Lexer::Generator::Error("Invalid scientific notation literal", totalSize);
+    if (possibleDirectionDistance.front() == '+' or possibleDirectionDistance.front() == '-')
+    {
+        possibleDirectionDistance.remove_prefix(1);
+        totalSize++;
     }
 
-    if ((currentView.size() < 3) or ((currentView[0] != '+' and currentView[0] != '-') and not std::isdigit(static_cast<unsigned char>(currentView[0]))))
+    for (std::size_t i = 0; i < possibleDirectionDistance.size(); i++)
     {
-        return std::nullopt;
-    }
-
-    char direction = currentView[0];
-    currentView.remove_prefix(1);
-
-    std::string_view distance = Lexer::Generator::extractUntilNotAlnum(currentView);
-    for (std::size_t i = 0; i < distance.size(); i++)
-    {
-        unsigned char c = static_cast<unsigned char>(distance[i]);
+        unsigned char c = static_cast<unsigned char>(possibleDirectionDistance[i]);
         if (not std::isdigit(c))
         {
-            throw Lexer::Generator::Error("Invalid scientific notation literal", i);
+            throw Lexer::Generator::Error("Invalid scientific notation literal", totalSize);
         }
+
+        totalSize++;
     }
 
-    std::size_t contentSize = possibleBase.size() + std::strlen("e+") + distance.size();
-    std::string_view content = fixedView.substr(0, contentSize);
-    view.remove_prefix(contentSize);
+    std::string_view content = fixedView.substr(0, totalSize);
+    view.remove_prefix(totalSize);
     return Lexer::Token(Lexer::Tag::SCI_LITERAL, content);
 }
 std::optional<Lexer::Token> Lexer::Generator::extractFloatLiteral(std::string_view& view)
@@ -474,6 +533,7 @@ std::optional<Lexer::Token> Lexer::Generator::extractFloatLiteral(std::string_vi
     if (not std::isdigit(static_cast<unsigned char>(fixedView.front()))) return std::nullopt;
 
     std::string_view possibleFloat = Lexer::Generator::extractUntilNotAlnum(fixedView, '.', "Invalid float literal");
+    if (possibleFloat.empty()) return std::nullopt;
 
     bool seenDigit = false;
     bool seenDot = false;
@@ -505,6 +565,7 @@ std::optional<Lexer::Token> Lexer::Generator::extractIntLiteral(std::string_view
     if (not std::isdigit(static_cast<unsigned char>(fixedView.front()))) return std::nullopt;
 
     std::string_view possibleInt = Lexer::Generator::extractUntilNotAlnum(fixedView, '.', "Invalid integer literal");
+    if (possibleInt.empty()) return std::nullopt;
 
     for (std::size_t i = 0; i < possibleInt.size(); i++)
     {
@@ -528,6 +589,7 @@ std::optional<Lexer::Token> Lexer::Generator::extractBoolLiteral(std::string_vie
     // Format: [Value: String]
 
     std::string_view possibleBool = Lexer::Generator::extractUntilNotAlnum(fixedView);
+    if (possibleBool.empty()) return std::nullopt;
 
     if (possibleBool == "True" or possibleBool == "False")
     {
@@ -546,6 +608,7 @@ std::optional<Lexer::Token> Lexer::Generator::extractNoneLiteral(std::string_vie
     // Format: [Value: String]
 
     std::string_view possibleNone = Lexer::Generator::extractUntilNotAlnum(fixedView);
+    if (possibleNone.empty()) return std::nullopt;
 
     if (possibleNone == "None")
     {
