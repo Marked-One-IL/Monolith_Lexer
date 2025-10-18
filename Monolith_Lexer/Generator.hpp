@@ -33,13 +33,12 @@ namespace Lexer
 		};
 
 		static void skipSpaces(std::string_view& view);
-		static std::size_t extractSpacesLevel(const std::string_view& view);
-		static std::string_view extractUntilNotAlnum(const std::string_view& view);
-		static std::string_view extractUntilNotAlnum(const std::string_view& view, char ignoreOnce, const char* errorIfNotOnce);
-		static std::string_view extractUntilNotAlnum(const std::string_view& view, char orIs);
-		static std::string_view extractUntilNewLine(const std::string_view& view);
 		static void incrementToNextLine(std::string_view& view);
 
+		static std::optional<std::size_t> extractSpacesLevel(const std::string_view& view);
+		static std::optional<std::string_view> extractUntilNewLine(const std::string_view& view);
+		static std::optional<std::string_view> extractUntilNotAlnum(const std::string_view& view);
+		
 		static std::optional<Lexer::Token> extractString3Literal(std::string_view& view);
 		static std::optional<Lexer::Token> extractStringLiteral(std::string_view& view);
 		static std::optional<Lexer::Token> extractCharLiteral(std::string_view& view);
