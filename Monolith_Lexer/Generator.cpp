@@ -5,8 +5,9 @@
 #include <exception>
 #include <stdexcept>
 #include <array>
-#include <cctype>
 #include <iterator>
+#include <cctype>
+#include <cmath>
 
 // Blessed be You, O my Lord. Our God, King of the world.
 // That he shall protect this code from bugs and undefined behavior. Amen :)
@@ -37,7 +38,7 @@ Lexer::Generator::Generator(const char* filename) : m_filename(filename)
     // For lexering.
     std::string_view view = this->m_file;
     std::stack<std::size_t> identLevels;
-    bool skipIndentFlag = false;
+    std::size_t depthClosingCount = 0; // Checks the depth of ( and [ . Useful for stuff like if ((x < 7) and (1 == 3)):
     bool shouldCheckIndentFlag = true;
     
     // For errors.
@@ -66,10 +67,22 @@ Lexer::Generator::Generator(const char* filename) : m_filename(filename)
     {
         try
         {
-            // Sorry for this ugly nesting. if (not skipIndentFlag) must be before auto opt = ...
-            if (shouldCheckIndentFlag) // This flag is on every '\n'.
+            // Newline must be first.
+            // This avoids the other extract function getting a string like that "\nx = 1234" and converting it into "".
+            // This could prevent bugs.
+            if (auto opt = Lexer::Generator::extractNewLine(view))
             {
-                if (not skipIndentFlag) // This flag is on every '(' and '[' and off on every ')' and ']'.
+                if (auto opt2 = Lexer::Generator::extractUntilNewLine(view)) currentLine = opt2.value();
+                linesCount++;
+                shouldCheckIndentFlag = true;
+                this->m_tokens.emplace_back(opt.value());
+                continue;
+            }
+
+            // Sorry for this ugly nesting. It's required and there is no better way to do it.
+            if (shouldCheckIndentFlag) // If newline and no closing depth.
+            {
+                if (not depthClosingCount) // This is nested here and not if (shouldCheckIndentFlag and not depthClosingCount) above. To make shouldCheckIndentFlag = false;.
                 {
                     if (auto opt = Lexer::Generator::extractInDedent(view, identLevels))
                     {
@@ -119,6 +132,7 @@ Lexer::Generator::Generator(const char* filename) : m_filename(filename)
                 this->m_tokens.emplace_back(opt.value());
                 continue;
             }
+            // Float before int because a string like this "1234.1234" will become: [INT_LITERAL: '1234'], [SYMBOL: '.'], [INT_LITERAL: '1234']
             if (auto opt = Lexer::Generator::extractFloatLiteral(view))
             {
                 this->m_tokens.emplace_back(opt.value());
@@ -139,21 +153,13 @@ Lexer::Generator::Generator(const char* filename) : m_filename(filename)
                 this->m_tokens.emplace_back(opt.value());
                 continue;
             }
-            if (auto opt = Lexer::Generator::extractSymbol(view, skipIndentFlag))
+            if (auto opt = Lexer::Generator::extractSymbol(view, depthClosingCount))
             {
                 this->m_tokens.emplace_back(opt.value());
                 continue;
             }
             if (auto opt = Lexer::Generator::extractKeyword(view))
             {
-                this->m_tokens.emplace_back(opt.value());
-                continue;
-            }
-            if (auto opt = Lexer::Generator::extractNewLine(view))
-            {
-                if (auto opt2 = Lexer::Generator::extractUntilNewLine(view)) currentLine = opt2.value();
-                linesCount++;
-                shouldCheckIndentFlag = true;
                 this->m_tokens.emplace_back(opt.value());
                 continue;
             }
@@ -172,7 +178,16 @@ Lexer::Generator::Generator(const char* filename) : m_filename(filename)
         {
             std::string_view fixedLine = currentLine;
             Lexer::Generator::skipSpaces(fixedLine);
-            std::size_t distance = (view.data() - fixedLine.data()) + error.column;
+
+            std::size_t distance;
+            if (error.column == std::string_view::npos)
+            {
+                distance = 0;
+            }
+            else
+            {
+                distance = std::abs((view.data() - fixedLine.data())) + error.column;
+            }
             this->m_errors.emplace_back(std::format("At line: {}\nError: {}\n{}\n{:{}s}^", linesCount, error.error, fixedLine, "", distance));
             
             Lexer::Generator::incrementToNextLine(view);
@@ -225,20 +240,16 @@ void Lexer::Generator::incrementToNextLine(std::string_view& view)
 
 std::optional<std::size_t> Lexer::Generator::extractSpacesLevel(const std::string_view& view)
 {
-    // Forced Code.
-    std::string_view fixedView;
-    if (auto opt = Lexer::Generator::extractUntilNewLine(view)) fixedView = opt.value();
-    else return std::nullopt;
-
     // Scan.
+    std::string_view temp = view;
     std::size_t level = 0;
-    while (not fixedView.empty() and (fixedView.front() == ' ' or fixedView.front() == '\t'))
+    while (not temp.empty() and (temp.front() == ' ' or temp.front() == '\t'))
     {
-        level += fixedView.front() == ' ';
-        level += (fixedView.front() == '\t') * 2;
-        fixedView.remove_prefix(1);
+        level += temp.front() == ' ';
+        level += (temp.front() == '\t') * 4;
+        temp.remove_prefix(1);
     }
-    if (level == 0) return std::nullopt;
+    if (not temp.empty() and (temp.front() == '\n' or temp.front() == '#')) return std::nullopt; // If empty string or is a comment.
 
     // Return.
     return level;
@@ -519,8 +530,10 @@ std::optional<Lexer::Token> Lexer::Generator::extractSciLiteral(std::string_view
     // Scan 2.
     if (afterE.front() == '+' or afterE.front() == '-')
     {
+        afterE.remove_prefix(1);
         totalSize++;
     }
+    bool seen = false;
     for (afterE; not afterE.empty(); afterE.remove_prefix(1))
     {
         unsigned char c = std::tolower(static_cast<unsigned char>(afterE.front()));
@@ -529,7 +542,9 @@ std::optional<Lexer::Token> Lexer::Generator::extractSciLiteral(std::string_view
         if (not std::isalnum(c)) break;
 
         totalSize++;
+        seen = true;
     }
+    if (not seen) throw Lexer::Generator::Error("Invalid scientific notation literal", totalSize);
 
     // Incrementation & return.
     std::string_view content = fixedView.substr(0, totalSize);
@@ -656,7 +671,7 @@ std::optional<Lexer::Token> Lexer::Generator::extractNoneLiteral(std::string_vie
     // Return default.
     return std::nullopt;
 }
-std::optional<Lexer::Token> Lexer::Generator::extractSymbol(std::string_view& view, bool& skipIndentFlag)
+std::optional<Lexer::Token> Lexer::Generator::extractSymbol(std::string_view& view, std::size_t& depthClosingCount)
 {
     // Forced Code.
     std::string_view fixedView;
@@ -731,11 +746,11 @@ std::optional<Lexer::Token> Lexer::Generator::extractSymbol(std::string_view& vi
         {
             if (punctuator1Symbol == '(' or punctuator1Symbol == '[')
             {
-                skipIndentFlag = true;
+                depthClosingCount++;
             }
-            else if ((punctuator1Symbol == ')' or punctuator1Symbol == ']') and skipIndentFlag)
+            else if (punctuator1Symbol == ')' or punctuator1Symbol == ']')
             {
-                skipIndentFlag = false;
+                if (depthClosingCount > 0) depthClosingCount--;
             }
 
             constexpr std::size_t OFFSET = 1;
@@ -809,18 +824,18 @@ std::optional<Lexer::Token> Lexer::Generator::extractNewLine(std::string_view& v
 }
 std::optional<std::vector<Lexer::Token>> Lexer::Generator::extractInDedent(std::string_view& view, std::stack<std::size_t>& identLevels)
 {
-    // Forced code.
-    std::string_view fixedView;
-    if (auto opt = Lexer::Generator::extractUntilNewLine(view)) fixedView = opt.value();
-    else return std::nullopt;
-
     // Early return.
     std::size_t newLevel;
-    if (auto opt = Lexer::Generator::extractSpacesLevel(fixedView)) newLevel = opt.value();
+    if (auto opt = Lexer::Generator::extractSpacesLevel(view)) newLevel = opt.value();
     else return std::nullopt;
+    if (identLevels.empty() and newLevel == 0)
+    {
+        return std::nullopt;
+    }
 
     // Scan 1.
-    if (identLevels.empty() or newLevel > identLevels.top()) {
+    if (identLevels.empty() or newLevel > identLevels.top()) 
+    {
         identLevels.push(newLevel);
         return std::vector<Lexer::Token>{ Lexer::Token(Lexer::Tag::INDENT) };
     }
@@ -836,7 +851,7 @@ std::optional<std::vector<Lexer::Token>> Lexer::Generator::extractInDedent(std::
         identLevels.pop();
         dedents.emplace_back(Lexer::Tag::DEDENT);
     }
-    if (identLevels.empty() or identLevels.top() != newLevel) throw Lexer::Generator::Error("Indent (spacing) doesn't match previous indents");
+    if ((identLevels.empty() or identLevels.top() != newLevel) and newLevel != 0) throw Lexer::Generator::Error("Indent (spacing) doesn't match previous indents", std::string_view::npos);
 
     // Return.
     return dedents;

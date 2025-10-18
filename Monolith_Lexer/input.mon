@@ -1,21 +1,14 @@
-123 0xDEAD 0b1101 0o755 3.14 2e10 .5e-3 6.022e23
-"normal string" """triple
-string""" 'c' '\n' 'a' '\t'
-True False None
-foo bar _baz qux123 var_name
-+ - * / % << >> |= &= ^= ~ == != >= <= -> :: ... ++ += -- -= *= /= 
-if elif else for while switch case default break continue label goto
-def return class const static int8 uint8 int16 uint16 int32 uint32 int64 uint64
-float double import ptr ref dref arr enum namespace typedef
-(x + y) * [z - 1] / {a + b} ... ??? :: -> <<=
-+++---***///===!=<>><=>>=...()[]abc123__XYZ
-randomGarbage$$$@@@!!!###%%%^^^&&&___
-123.456e-78 0xABCDEF 0b1010101 0o1234
-"unterminated string
-'a' '\x' '\n'
-TrueFalseNone
-(foo_bar + 0X1F - 0b10_101) * arr[42] / some_var
-.. .. ... ..++ --== != <<>> >>= <<= 
-nested_identifiers_and_numbers1234567890
-random_symbols_!@#$%^&*()_+=-[]|\:;<>,.?/~`
-{}
+if ((x < 7) and
+	(y > 4)):
+	print("Hello, World!")
+
+    if ((x < 7) and (y > 4)):
+		print("dsafdfsjsdjkhfh")
+		if ((x < 7) and (y > 4)):
+	   print("dsafdfsjsdjkhfh")
+		 # 1234
+
+print("dsadas")
+
+def main():
+	myFloat: float = 1e+#

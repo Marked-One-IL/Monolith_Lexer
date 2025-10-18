@@ -50,14 +50,14 @@ namespace Lexer
 		static std::optional<Lexer::Token> extractIntLiteral(std::string_view& view);
 		static std::optional<Lexer::Token> extractBoolLiteral(std::string_view& view);
 		static std::optional<Lexer::Token> extractNoneLiteral(std::string_view& view);
-		static std::optional<Lexer::Token> extractSymbol(std::string_view& view, bool& skipIndentFlag);
+		static std::optional<Lexer::Token> extractSymbol(std::string_view& view, std::size_t& skipIndentFlag);
 		static std::optional<Lexer::Token> extractKeyword(std::string_view& view);
 		static std::optional<Lexer::Token> extractNewLine(std::string_view& view);
 		static std::optional<std::vector<Lexer::Token>> extractInDedent(std::string_view& view, std::stack<std::size_t>& identLevels);
 		static std::optional<Lexer::Token> extractIdentifier(std::string_view& view);
 
 		const char* m_filename;
-		std::string m_file;
+		std::string m_file; // Life of the string cannot be in the constructor but in the class itself.
 		std::vector<Lexer::Token> m_tokens;
 		std::vector<std::string> m_errors;
 	};
