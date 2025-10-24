@@ -506,9 +506,9 @@ std::optional<Lexer::Token> Lexer::Generator::extractSciLiteral(std::string_view
         {
             if (seenDot)
             {
-                throw Lexer::Generator::Error("Invalid float literal", i);
+                throw Lexer::Generator::Error("Invalid float literal", totalSize);
             }
-            throw Lexer::Generator::Error("Invalid integer literal", i); // If there was no dot it means it's an int literal.
+            throw Lexer::Generator::Error("Invalid integer literal", totalSize); // If there was no dot it means it's an int literal.
         }
         if (not std::isalnum(c)) break;
     }
