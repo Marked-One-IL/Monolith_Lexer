@@ -1,6 +1,6 @@
 # CLion project settings.
-idea/
+.idea/
 
 # Project build stuff.
-cmake-build-debug/
-cmake-build-release/
+.cmake-build-debug/
+.cmake-build-release/
