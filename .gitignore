@@ -1,5 +1,5 @@
 # CLion project settings.
-.idea/
+idea/
 
 # Project build stuff.
 cmake-build-debug/
