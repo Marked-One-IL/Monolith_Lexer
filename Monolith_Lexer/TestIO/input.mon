@@ -1,0 +1,2 @@
+def main(argc: int32, argv: ptr[int8, 2]) -> int32:
+    return 0

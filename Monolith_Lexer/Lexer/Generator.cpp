@@ -1,6 +1,6 @@
-#include "Generator.hpp"
-#include "Helper.hpp"
-#include "Assert.hpp"
+#include "../Lexer/Generator.hpp"
+#include "../Helper/Helper.hpp"
+#include "../Helper/Assert.hpp"
 #include <algorithm>
 #include <exception>
 #include <stdexcept>

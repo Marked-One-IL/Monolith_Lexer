@@ -1,5 +1,5 @@
-#include "Token.hpp"
-#include "Assert.hpp"
+#include "../Lexer/Token.hpp"
+#include "../Helper/Assert.hpp"
 
 Lexer::Token::Token(Lexer::Tag new_tag)
     : tag(new_tag)

@@ -1,10 +1,10 @@
-#include "Generator.hpp"
+#include "Lexer/Generator.hpp"
 #include <fstream>
 
 int main(int argc, char** argv)
 {
-    const char* inputFileName = "input.mon";
-    const char* outputFileName = "output.lex";
+    const char* inputFileName = "../TestIO/input.mon";
+    const char* outputFileName = "../TestIO/output.lex";
 
     if (argc >= 2)
     {

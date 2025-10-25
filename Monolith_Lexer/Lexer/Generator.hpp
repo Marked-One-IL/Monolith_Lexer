@@ -1,5 +1,5 @@
 #pragma once
-#include "Token.hpp"
+#include "../Lexer/Token.hpp"
 
 #include <vector>
 #include <string_view>
